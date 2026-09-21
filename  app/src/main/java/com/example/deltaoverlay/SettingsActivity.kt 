@@ -1,0 +1,33 @@
+package com.example.deltaoverlay
+
+import android.os.Bundle
+import android.widget.ArrayAdapter
+import android.widget.Button
+import android.widget.EditText
+import android.widget.Spinner
+import androidx.appcompat.app.AppCompatActivity
+
+class SettingsActivity : AppCompatActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_settings)
+        val etKey = findViewById<EditText>(R.id.et_api_key)
+        val etModel = findViewById<EditText>(R.id.et_model)
+        val etInterval = findViewById<EditText>(R.id.et_interval)
+        val spinner = findViewById<Spinner>(R.id.spinner_mode)
+        val btnSave = findViewById<Button>(R.id.btn_save)
+        val s = SettingsManager(this)
+        etKey.setText(s.getApiKey())
+        etModel.setText(s.getModelName())
+        etInterval.setText(s.getCaptureIntervalMs().toString())
+        spinner.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, listOf("烽火", "全面")).apply { setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
+        spinner.setSelection(if (s.getGameMode() == "全面") 1 else 0)
+        btnSave.setOnClickListener {
+            s.setApiKey(etKey.text.toString().trim())
+            s.setModelName(etModel.text.toString().trim())
+            s.setCaptureInterval(etInterval.text.toString().toLongOrNull() ?: 3000L)
+            s.setGameMode(spinner.selectedItem.toString())
+            finish()
+        }
+    }
+}
