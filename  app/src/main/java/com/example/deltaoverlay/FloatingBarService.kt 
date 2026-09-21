@@ -1,0 +1,65 @@
+package com.example.deltaoverlay
+
+import android.app.Service
+import android.content.Intent
+import android.graphics.PixelFormat
+import android.os.Build
+import android.os.IBinder
+import android.view.Gravity
+import android.view.LayoutInflater
+import android.view.MotionEvent
+import android.view.View
+import android.view.WindowManager
+import android.widget.TextView
+import kotlin.math.abs
+
+class FloatingBarService : Service() {
+    companion object { var instance: FloatingBarService? = null }
+
+    private lateinit var windowManager: WindowManager
+    private lateinit var floatingView: View
+    private lateinit var tvAdvice: TextView
+
+    override fun onCreate() {
+        super.onCreate()
+        instance = this
+        windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
+        floatingView = LayoutInflater.from(this).inflate(R.layout.floating_bar, null)
+        tvAdvice = floatingView.findViewById(R.id.tv_advice)
+
+        val params = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.WRAP_CONTENT,
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY else WindowManager.LayoutParams.TYPE_PHONE,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+            PixelFormat.TRANSLUCENT
+        )
+        params.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+        params.y = 80
+        windowManager.addView(floatingView, params)
+
+        floatingView.setOnTouchListener(object : View.OnTouchListener {
+            var ix = 0; var iy = 0; var tx = 0f; var ty = 0f
+            override fun onTouch(v: View?, e: MotionEvent?): Boolean {
+                when (e!!.action) {
+                    MotionEvent.ACTION_DOWN -> { ix = params.x; iy = params.y; tx = e.rawX; ty = e.rawY; return true }
+                    MotionEvent.ACTION_MOVE -> { params.x = ix + (e.rawX - tx).toInt(); params.y = iy + (e.rawY - ty).toInt(); windowManager.updateViewLayout(floatingView, params); return true }
+                    MotionEvent.ACTION_UP -> { if (abs(e.rawX - tx) < 10 && abs(e.rawY - ty) < 10) tvAdvice.visibility = if (tvAdvice.visibility == View.VISIBLE) View.GONE else View.VISIBLE; return true }
+                }
+                return false
+            }
+        })
+        tvAdvice.text = "DeltaOverlay 就绪"
+    }
+
+    fun updateAdvice(text: String) {
+        android.os.Handler(android.os.Looper.getMainLooper()).post { tvAdvice.text = text }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        windowManager.removeView(floatingView)
+        instance = null
+    }
+
+    override fun onBind(intent: Intent?): IBinder? = null
+}
