@@ -1,0 +1,65 @@
+package com.example.deltaoverlay
+
+import android.graphics.Bitmap
+import android.util.Base64
+import kotlinx.coroutines.*
+import okhttp3.*
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONArray
+import org.json.JSONObject
+import java.io.ByteArrayOutputStream
+
+class Analyzer(private val service: CaptureService) {
+    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val client = OkHttpClient.Builder().connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS).readTimeout(40, java.util.concurrent.TimeUnit.SECONDS).build()
+
+    fun analyzeFrame(bitmap: Bitmap) {
+        scope.launch {
+            try {
+                val resized = if (bitmap.width > 960) Bitmap.createScaledBitmap(bitmap, 960, (bitmap.height * 960f / bitmap.width).toInt(), true) else bitmap
+                val baos = ByteArrayOutputStream()
+                resized.compress(Bitmap.CompressFormat.JPEG, 70, baos)
+                val base64 = Base64.encodeToString(baos.toByteArray(), Base64.NO_WRAP)
+
+                val settings = SettingsManager(service)
+                val apiKey = settings.getApiKey()
+                if (apiKey.isEmpty()) { FloatingBarService.instance?.updateAdvice("⚠️ 设置里填 DeepSeek Key"); return@launch }
+
+                val mode = settings.getGameMode()
+                val sysPrompt = service.assets.open("prompt.txt").bufferedReader().use { it.readText() }
+                val userText = if (mode == "烽火") "$sysPrompt\n模式：烽火地带。重点：小地图红/黄点、敌人方位、撤不撤。≤80字。\n这是当前画面：" else "$sysPrompt\n模式：全面战场。重点：攻防路线、火力对比。≤80字。\n这是当前画面："
+
+                val body = JSONObject().apply {
+                    put("model", settings.getModelName().ifEmpty { "deepseek-flash" })
+                    put("max_tokens", 200)
+                    put("temperature", 0.3)
+                    put("messages", JSONArray().apply { put(JSONObject().apply {
+                        put("role", "user")
+                        put("content", JSONArray().apply {
+                            put(JSONObject().apply { put("type", "text"); put("text", userText) })
+                            put(JSONObject().apply { put("type", "image_url"); put("image_url", JSONObject().apply { put("url", "data:image/jpeg;base64,$base64"); put("detail", "low") }) })
+                        })
+                    }) })
+                }
+
+                val req = Request.Builder().url("https://api.deepseek.com/chat/completions")
+                    .addHeader("Authorization", "Bearer $apiKey")
+                    .post(body.toString().toRequestBody("application/json".toMediaType())).build()
+
+                val resp = client.newCall(req).execute()
+                val respBody = resp.body?.string()
+                if (respBody != null) {
+                    val json = JSONObject(respBody)
+                    val text = if (json.has("choices")) json.getJSONArray("choices").getJSONObject(0).getJSONObject("message").getString("content").trim() else json.optJSONObject("error")?.optString("message", "error")
+                    FloatingBarService.instance?.updateAdvice(text ?: "empty")
+                }
+                if (resized != bitmap) resized.recycle()
+            } catch (e: Exception) {
+                FloatingBarService.instance?.updateAdvice("错误: ${e.message?.take(60)}")
+            }
+        }
+    }
+
+    fun release() { scope.cancel() }
+}
