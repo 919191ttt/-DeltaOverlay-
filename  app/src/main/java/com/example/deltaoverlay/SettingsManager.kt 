@@ -1,0 +1,17 @@
+package com.example.deltaoverlay
+
+import android.content.Context
+import android.content.Intent
+
+class SettingsManager(private val c: Context) {
+    private val p = c.getSharedPreferences("delta_overlay", Context.MODE_PRIVATE)
+    fun saveProjectionData(rc: Int, d: Intent) { p.edit().putInt("proj_rc", rc).putString("proj_data", d.toUri(0)).apply() }
+    fun getApiKey(): String = p.getString("api_key", "") ?: ""
+    fun setApiKey(k: String) = p.edit().putString("api_key", k).apply()
+    fun getModelName(): String = p.getString("model_name", "deepseek-flash") ?: "deepseek-flash"
+    fun setModelName(n: String) = p.edit().putString("model_name", n).apply()
+    fun getGameMode(): String = p.getString("game_mode", "烽火") ?: "烽火"
+    fun setGameMode(m: String) = p.edit().putString("game_mode", m).apply()
+    fun getCaptureIntervalMs(): Long = p.getLong("capture_interval", 3000L)
+    fun setCaptureInterval(ms: Long) = p.edit().putLong("capture_interval", ms).apply()
+}
