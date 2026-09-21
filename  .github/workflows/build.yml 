@@ -3,7 +3,7 @@ name: Build APK
 on:
   push:
     branches: [ "main" ]
-  workflow_dispatch:  # <-- 加上这行，就能在网页手动点按钮了
+  workflow_dispatch:
 
 jobs:
   build:
