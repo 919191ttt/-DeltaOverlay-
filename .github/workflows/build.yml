@@ -1,8 +1,10 @@
-    name: Build APK
+name: Build APK
+
 on:
   push:
     branches: [ "main" ]
   workflow_dispatch:
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -15,17 +17,19 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
       
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+      
       - name: Setup Gradle
         uses: gradle/gradle-build-action@v2
         with:
           gradle-version: '8.4'
       
       - name: Build Debug APK
-        working-directory: code   # ⚠️这里改成你实际放app的文件夹名
         run: gradle assembleDebug --no-daemon
       
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: delta-overlay-debug
-          path: code/app/build/outputs/apk/debug/app-debug.apk  # ⚠️前缀也要改
+          path: app/build/outputs/apk/debug/app-debug.apk
