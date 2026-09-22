@@ -22,14 +22,15 @@ jobs:
         with:
           gradle-version: '8.7'
       
-      - name: Setup Android SDK (Manual)
+      - name: Manual Android SDK Setup
         run: |
-          mkdir -p $ANDROID_SDK_ROOT/cmdline-tools/latest
+          sudo mkdir -p /opt/android-sdk/cmdline-tools/latest
+          sudo chown -R $USER:$USER /opt/android-sdk
           wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
           unzip -q commandlinetools-linux-11076708_latest.zip -d /tmp/cmdline-tools
-          mv /tmp/cmdline-tools/cmdline-tools/* $ANDROID_SDK_ROOT/cmdline-tools/latest/
-          yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null || true
-          $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+          mv /tmp/cmdline-tools/cmdline-tools/* /opt/android-sdk/cmdline-tools/latest/
+          /opt/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses <<< $'y\ny\ny\ny\ny\ny\ny\ny\ny\ny\n'
+          /opt/android-sdk/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
         env:
           ANDROID_SDK_ROOT: /opt/android-sdk
       
