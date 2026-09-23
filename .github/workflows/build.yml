@@ -39,12 +39,14 @@ jobs:
         run: |
           echo "当前目录: $(pwd)"
           ls -la
-          # 直接调用系统 gradle，不依赖 gradlew，进入应用(app)目录编译
-          cd app
-          gradle assembleDebug --no-daemon
+          # 直接在根目录编译，不cd。使用通配符构建所有模块，或指定 :应用:assembleDebug
+          gradle :应用:assembleDebug --no-daemon || gradle assembleDebug --no-daemon
       
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: delta-overlay-debug
-          path: app/build/outputs/apk/debug/app-debug.apk
+          # 兼容中文目录名“应用”和英文“app”
+          path: |
+            应用/build/outputs/apk/debug/*.apk
+            app/build/outputs/apk/debug/*.apk
