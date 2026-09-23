@@ -30,23 +30,16 @@ jobs:
           echo "ANDROID_HOME=$SDK_DIR" >> $GITHUB_ENV
           echo "ANDROID_SDK_ROOT=$SDK_DIR" >> $GITHUB_ENV
       
-      - name: Setup Gradle
+      - name: Build with Gradle Action (Bypass CN dir)
         uses: gradle/gradle-build-action@v2
         with:
           gradle-version: '8.7'
-      
-      - name: Build Debug APK
-        run: |
-          echo "当前目录: $(pwd)"
-          ls -la
-          # 直接在根目录编译，不cd。使用通配符构建所有模块，或指定 :应用:assembleDebug
-          gradle :应用:assembleDebug --no-daemon || gradle assembleDebug --no-daemon
+          arguments: --settings-file settings.gradle assembleDebug --no-daemon
       
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: delta-overlay-debug
-          # 兼容中文目录名“应用”和英文“app”
           path: |
             应用/build/outputs/apk/debug/*.apk
             app/build/outputs/apk/debug/*.apk
