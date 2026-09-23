@@ -30,14 +30,18 @@ jobs:
           echo "ANDROID_HOME=$SDK_DIR" >> $GITHUB_ENV
           echo "ANDROID_SDK_ROOT=$SDK_DIR" >> $GITHUB_ENV
       
-      - name: Check & Build Debug APK
+      - name: Setup Gradle
+        uses: gradle/gradle-build-action@v2
+        with:
+          gradle-version: '8.7'
+      
+      - name: Build Debug APK
         run: |
           echo "当前目录: $(pwd)"
           ls -la
-          echo "--- 尝试赋予 gradlew 权限 ---"
-          chmod +x gradlew || echo "gradlew 权限赋予跳过(可能不存在)"
-          echo "--- 开始构建 ---"
-          ./gradlew assembleDebug --no-daemon
+          # 直接调用系统 gradle，不依赖 gradlew，进入应用(app)目录编译
+          cd app
+          gradle assembleDebug --no-daemon
       
       - name: Upload APK
         uses: actions/upload-artifact@v4
