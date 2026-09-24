@@ -53,8 +53,3 @@ jobs:
         with:
           name: delta-overlay-debug
           path: 应用/build/outputs/apk/debug/*.apk
-        with:
-          name: delta-overlay-debug
-          path: |
-            应用/build/outputs/apk/debug/*.apk
-            app/build/outputs/apk/debug/*.apk
