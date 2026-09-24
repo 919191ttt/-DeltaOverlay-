@@ -1,1 +1,4 @@
-// Empty - using plugins block in app/build.gradle
+plugins {
+    id 'com.android.application' version '8.5.0' apply false
+}
+
