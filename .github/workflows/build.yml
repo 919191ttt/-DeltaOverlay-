@@ -1,4 +1,4 @@
-name: Build APK
+name: Build APK (Ultimate Dynamic)
 
 on:
   push:
@@ -11,7 +11,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Set up JDK 17
+      - name: Set up JDK 17 (Force)
         uses: actions/setup-java@v3
         with:
           java-version: '17'
@@ -29,19 +29,44 @@ jobs:
           $CMDTOOLS/bin/sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
           echo "ANDROID_HOME=$SDK_DIR" >> $GITHUB_ENV
           echo "ANDROID_SDK_ROOT=$SDK_DIR" >> $GITHUB_ENV
+          # 强制覆盖，防止 action 自动拾取高版本
+          echo "JAVA_HOME=$JAVA_HOME" >> $GITHUB_ENV
+          echo "PATH=$JAVA_HOME/bin:$PATH" >> $GITHUB_ENV
       
-      - name: Setup Gradle
+      - name: Setup Gradle 8.7
         uses: gradle/gradle-build-action@v2
         with:
           gradle-version: '8.7'
+          cache-disabled: true # 避免缓存干扰
       
-      - name: Fix settings.gradle
+      - name: Fix settings.gradle (兼容处理)
         run: |
-          echo "include ':app'" > settings.gradle
-          echo "rootProject.name = 'DeltaOverlay'" >> settings.gradle
+          echo "当前目录: $(pwd)"
+          ls -la
+          # 如果原来没有 settings.gradle 或模块不对，尝试兜底包含 app（如果存在）
+          if [ -d "app" ]; then
+            echo "include ':app'" > settings.gradle
+          else
+            echo "根目录即项目" 
+          fi
+          cat settings.gradle || true
       
-      - name: Build Debug APK
-        run: gradle :app:assembleDebug --no-daemon
+      - name: Build Debug APK (智能匹配)
+        run: |
+          echo "--- 查找可用任务 ---"
+          gradle tasks --all 2>/dev/null | grep -i "assemble" || true
+          
+          # 尝试多种构建方式
+          if gradle tasks --all 2>/dev/null | grep -q ":app:assembleDebug"; then
+            echo "找到 :app:assembleDebug，执行它"
+            gradle :app:assembleDebug --no-daemon
+          elif gradle tasks --all 2>/dev/null | grep -q "assembleDebug"; then
+            echo "找到根项目 assembleDebug，执行它"
+            gradle assembleDebug --no-daemon
+          else
+            echo "未找到标准任务，尝试直接构建根项目 (默认变体)"
+            gradle assemble --no-daemon || gradle build --no-daemon
+          fi
       
       - name: Find APK (Debug)
         run: |
@@ -53,7 +78,7 @@ jobs:
         with:
           name: delta-overlay-debug
           path: |
+            **/*.apk
             app/build/outputs/apk/debug/*.apk
-            app/build/outputs/apk/**/*.apk
-            **/build/outputs/apk/debug/*.apk
+            build/outputs/apk/debug/*.apk
           retention-days: 7
