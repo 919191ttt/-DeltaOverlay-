@@ -1,4 +1,4 @@
-name: Build APK (Ultimate Dynamic)
+name: Build APK
 
 on:
   push:
@@ -35,38 +35,20 @@ jobs:
         with:
           gradle-version: '8.7'
       
-      - name: Build Debug APK (Dynamic Task)
+      - name: Fix settings.gradle
         run: |
-          echo "当前目录: $(pwd)"
-          ls -la
-          
-          # 1. 修正 settings.gradle（确保指向真实的 'app' 目录，清除之前的 '应用' 误导）
           echo "include ':app'" > settings.gradle
           echo "rootProject.name = 'DeltaOverlay'" >> settings.gradle
-          cat settings.gradle
-          
-          # 2. 动态探测任务
-          echo "--- 探测可用任务 ---"
-          gradle tasks --all --no-daemon | grep -E "(assemble|build)" || true
-          
-          # 3. 智能构建逻辑
-          if gradle tasks --all --no-daemon | grep -q ":app:assembleDebug"; then
-            echo "✅ 检测到 :app:assembleDebug，执行标准 APK 构建..."
-            gradle :app:assembleDebug --no-daemon
-          elif gradle tasks --all --no-daemon | grep -q "assembleDebug"; then
-            echo "✅ 检测到根目录 assembleDebug，执行构建..."
-            gradle assembleDebug --no-daemon
-          else
-            echo "⚠️ 未检测到 assembleDebug（可能不是标准 Android App 模块），执行通用构建..."
-            gradle build --no-daemon || gradle assemble --no-daemon || true
-          fi
-          
-          # 4. 打印产出物路径（调试用）
-          echo "--- 查找 APK 产出物 ---"
-          find . -name "*.apk" -type f -print || true
+      
+      - name: Build Debug APK
+        run: gradle :app:assembleDebug --no-daemon
+      
+      - name: Find APK (Debug)
+        run: |
+          echo "--- 查找所有 APK ---"
+          find . -name "*.apk" -type f -print
       
       - name: Upload APK
-        if: success() || failure() # 即使构建失败也尝试上传（方便排查）
         uses: actions/upload-artifact@v4
         with:
           name: delta-overlay-debug
@@ -74,5 +56,4 @@ jobs:
             app/build/outputs/apk/debug/*.apk
             app/build/outputs/apk/**/*.apk
             **/build/outputs/apk/debug/*.apk
-            **/build/libs/*.jar
           retention-days: 7
