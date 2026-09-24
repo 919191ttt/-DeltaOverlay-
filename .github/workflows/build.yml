@@ -30,26 +30,14 @@ jobs:
           echo "ANDROID_HOME=$SDK_DIR" >> $GITHUB_ENV
           echo "ANDROID_SDK_ROOT=$SDK_DIR" >> $GITHUB_ENV
       
-      - name: Setup Gradle
-        uses: gradle/gradle-build-action@v2
-        with:
-          gradle-version: '8.7'
-      
-      - name: Build Debug APK (Fix CN dir)
-        run: |
-          echo "当前目录: $(pwd)"
-          ls -la
-          # 1. 自动创建缺失的 settings.gradle (声明包含'应用'模块，兼容中文)
-          echo "include ':应用'" > settings.gradle
-          echo "rootProject.name = 'DeltaOverlay'" >> settings.gradle
-          cat settings.gradle
-          
-          # 2. 进入子目录（日志证实叫'应用'），直接用 gradle 编译
-          cd "应用"
-          gradle assembleDebug --no-daemon
+      - name: Grant Gradlew Permission
+        run: chmod +x ./gradlew
+        
+      - name: Build Debug APK
+        run: ./gradlew :app:assembleDebug --no-daemon
       
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: delta-overlay-debug
-          path: 应用/build/outputs/apk/debug/*.apk
+          path: app/build/outputs/apk/debug/*.apk
