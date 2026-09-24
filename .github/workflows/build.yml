@@ -1,4 +1,4 @@
-name: Build APK (Ultimate Dynamic)
+namename: Build APK (Ultimate Debug)
 
 on:
   push:
@@ -11,7 +11,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Set up JDK 17 (Force)
+      - name: Set up JDK 17
         uses: actions/setup-java@v3
         with:
           java-version: '17'
@@ -29,51 +29,54 @@ jobs:
           $CMDTOOLS/bin/sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
           echo "ANDROID_HOME=$SDK_DIR" >> $GITHUB_ENV
           echo "ANDROID_SDK_ROOT=$SDK_DIR" >> $GITHUB_ENV
-          # 强制覆盖，防止 action 自动拾取高版本
-          echo "JAVA_HOME=$JAVA_HOME" >> $GITHUB_ENV
-          echo "PATH=$JAVA_HOME/bin:$PATH" >> $GITHUB_ENV
       
       - name: Setup Gradle 8.7
         uses: gradle/gradle-build-action@v2
         with:
           gradle-version: '8.7'
-          cache-disabled: true # 避免缓存干扰
+          cache-disabled: true
       
-      - name: Fix settings.gradle (兼容处理)
+      - name: 1. 打印真实目录结构 (关键排查)
         run: |
-          echo "当前目录: $(pwd)"
+          echo "=== 当前路径: $(pwd) ==="
+          echo "=== 根目录文件 ==="
           ls -la
-          # 如果原来没有 settings.gradle 或模块不对，尝试兜底包含 app（如果存在）
-          if [ -d "app" ]; then
-            echo "include ':app'" > settings.gradle
-          else
-            echo "根目录即项目" 
-          fi
-          cat settings.gradle || true
+          echo "=== 是否有 app 目录 ==="
+          ls -la app/ 2>/dev/null || echo "没有 app 目录"
+          echo "=== 查找所有 gradle 文件 ==="
+          find . -maxdepth 2 -name "*.gradle*" -type f -print
       
-      - name: Build Debug APK (智能匹配)
+      - name: 2. 强制修复 Gradle 配置
         run: |
-          echo "--- 查找可用任务 ---"
-          gradle tasks --all 2>/dev/null | grep -i "assemble" || true
-          
-          # 尝试多种构建方式
-          if gradle tasks --all 2>/dev/null | grep -q ":app:assembleDebug"; then
-            echo "找到 :app:assembleDebug，执行它"
-            gradle :app:assembleDebug --no-daemon
-          elif gradle tasks --all 2>/dev/null | grep -q "assembleDebug"; then
-            echo "找到根项目 assembleDebug，执行它"
-            gradle assembleDebug --no-daemon
-          else
-            echo "未找到标准任务，尝试直接构建根项目 (默认变体)"
-            gradle assemble --no-daemon || gradle build --no-daemon
+          # 如果原仓库没有 settings.gradle，强制创建一个（假设根目录就是项目，或包含 app）
+          if [ ! -f "settings.gradle" ] && [ ! -f "settings.gradle.kts" ]; then
+            echo "原仓库无 settings.gradle，正在创建..."
+            if [ -d "app" ]; then
+              echo "include ':app'" > settings.gradle
+            else
+              echo "根项目即主项目"
+            fi
           fi
+          echo "=== 最终 settings.gradle 内容 ==="
+          cat settings.gradle 2>/dev/null || true
+          echo "=== 最终 build.gradle 存在情况 ==="
+          ls -la build.gradle* 2>/dev/null || true
       
-      - name: Find APK (Debug)
+      - name: 3. 构建 Debug APK (最基础尝试)
         run: |
-          echo "--- 查找所有 APK ---"
+          echo "=== 尝试直接构建 ==="
+          # 不再先跑 tasks，直接尝试构建
+          gradle assembleDebug --no-daemon 2>/dev/null || \
+          gradle :app:assembleDebug --no-daemon 2>/dev/null || \
+          gradle assemble --no-daemon 2>/dev/null || \
+          gradle build --no-daemon
+      
+      - name: 4. 查找 APK
+        run: |
+          echo "=== 查找所有 .apk 文件 ==="
           find . -name "*.apk" -type f -print
       
-      - name: Upload APK
+      - name: 5. 上传 APK
         uses: actions/upload-artifact@v4
         with:
           name: delta-overlay-debug
